@@ -1,0 +1,17 @@
+Package: MRDAG
+Type: Package
+Title: Mendelian Randomization for Directed Acyclic Graphs
+Version: 0.1.0
+Author: Minhao Yao
+Maintainer: Minhao Yao <mhyaooo@nus.edu.sg>
+Description: Implements a two-step algorithm for inferring causal graphs among proteins/genes using Mendelian Randomization. 
+    First, it estimates a rough causal effects matrix using Two-stage Least Squares (2SLS) regressions by excluding cis-SNPs for target. 
+    Second, it projects this matrix onto the space of Directed Acyclic Graphs (DAGs) using the NOTEARS continuous optimization constraint.
+License: GPL-3
+Encoding: UTF-8
+LazyData: true
+Imports: 
+    MASS,
+    expm,
+    stats
+RoxygenNote: 7.3.3
