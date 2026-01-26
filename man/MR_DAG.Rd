@@ -12,7 +12,8 @@ MR_DAG(
   max_iter = 100,
   h_tol = 1e-08,
   rho_max = 1e+16,
-  w_threshold = 0.1
+  w_threshold = 0.1,
+  ci = FALSE
 )
 }
 \arguments{
@@ -34,13 +35,20 @@ that are valid instruments for phenotype \code{X[, j]}.}
 \item{rho_max}{Numeric. Maximum penalty parameter. Default is \code{1e16}.}
 
 \item{w_threshold}{Numeric. Threshold for zeroing out small coefficients. Default is \code{0.1}.}
+
+\item{ci}{Logical. If \code{TRUE}, computes standard errors, p-values, and confidence intervals
+for the non-zero entries of the estimated DAG. Default is \code{FALSE}.}
 }
 \value{
-A numeric matrix \eqn{B^*} of dimensions \eqn{p \times p}, representing the estimated causal
-  adjacency matrix. Entry \eqn{B^*_{ij}} represents the causal effect of \eqn{X_j} on \eqn{X_i}.
+If \code{ci = FALSE}, returns a numeric matrix \eqn{B^*} of dimensions \eqn{p \times p}, representing
+the estimated causal adjacency matrix.
+
+If \code{ci = TRUE}, returns a list containing:
+\item{B_est}{The estimated weighted adjacency matrix \eqn{B^*}.}
+\item{inference}{A data frame containing the Source, Target, Estimate, SE, P-value, and 95\% CI for each edge.}
 }
 \description{
-\code{MR_DAG} infers a causal Directed Acyclic Graph (DAG) among a set of phenotypes (X) using
+`MR_DAG` infers a causal Directed Acyclic Graph (DAG) among a set of phenotypes (X) using
 genetic instruments (Z). It first estimates the pairwise effects using Instrumental Variable (IV)
 methods and then projects the resulting matrix onto the space of DAGs to resolve cycles and
 enforce consistency.
@@ -50,8 +58,12 @@ The algorithm proceeds in two steps:
 \enumerate{
   \item \strong{Initial Estimation:} It computes the reduced-form coefficients \eqn{\Gamma = X^T Z (Z^T Z)^{-1}}.
   Then, for each target phenotype \eqn{j}, it estimates the incoming edges from other phenotypes by
-  regressing \eqn{\Gamma_{j, -\text{cis-SNPs}}} on \eqn{\Gamma_{-j, -\text{cis-SNPs}}}.
+  regressing \eqn{\Gamma_{j, \text{valid}}} on \eqn{\Gamma_{-j, \text{valid}}}.
   \item \strong{Projection:} The matrix \eqn{B_{hat}} estimated in step 1 may contain cycles.
   The function calls \code{\link{notears_projection}} to find the nearest valid DAG.
 }
+
+If \code{ci = TRUE}, post-selection inference is performed based on the asymptotic normality of the
+MR-DAG estimator. This involves re-estimating residual variances from the reduced-form
+equations and constructing a covariance matrix using the coefficients of non-target proteins.
 }
