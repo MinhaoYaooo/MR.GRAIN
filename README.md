@@ -168,7 +168,7 @@ This table provides the post-selection inference results (Theorem 3).
 * **target/source:** The edge direction (Source $\to$ Target).
 * **est:** The estimated coefficient (matches the matrix).
 * **se / pval:** Standard error and P-value derived from the asymptotic variance.
-* **ci_lower / ci_upper:** The 95% Wald confidence interval.
+* **ci_lower / ci_upper:** The 95% confidence interval.
 
 **Example Analysis (Node 8):**
 Node 8 appears twice in the table (Rows 7 and 8), indicating it has two distinct causal parents:
@@ -192,4 +192,6 @@ $inference
 
 We can also visualize the estimated DAG using the above codes by changing `B_true` to `results$B_est`.
 
-![Estimated DAG](example_figures/Estimated_DAG.png)
+<p align="center">
+  <img src="example_figures/Estimated_DAG.png" width="500" title="Estimated DAG">
+</p>
