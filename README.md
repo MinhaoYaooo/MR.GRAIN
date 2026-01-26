@@ -125,10 +125,8 @@ To estimate the causal graph, use the `MR_DAG` function. This function performs 
 # Run MR-DAG estimation
 # lam: Sparsity penalty (L1 regularization)
 # w_threshold: Cutoff for small edge weights
-B_est <- MR_DAG(X, Z, S, lam = 0.01, w_threshold = 0.1, ci=TRUE)
-
-# View the estimated adjacency matrix
-print(round(B_est, 3))
+results <- MR_DAG(X, Z, S, lam = 0.01, w_threshold = 0.1, ci=TRUE)
+print(results)
 ```
 
 ## Interpretation
