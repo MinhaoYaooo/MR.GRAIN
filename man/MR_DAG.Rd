@@ -24,7 +24,7 @@ MR_DAG(
 \eqn{q} genetic variants (instruments).}
 
 \item{S}{A list of length \eqn{p}. \code{S[[j]]} contains the integer indices of the columns in \code{Z}
-that are valid instruments for phenotype \code{X[, j]}.}
+that only have direct / cis-regulatory effects) for phenotype \code{X[, j]}.}
 
 \item{lam}{Numeric. Sparsity penalty passed to \code{\link{notears_projection}}. Default is \code{0.0}.}
 
@@ -49,7 +49,7 @@ If \code{ci = TRUE}, returns a list containing:
 }
 \description{
 `MR_DAG` infers a causal Directed Acyclic Graph (DAG) among a set of phenotypes (X) using
-genetic instruments (Z). It first estimates the pairwise effects using Instrumental Variable (IV)
+genetic instruments (Z). It first estimates the pairwise effects using two-stage least squares (2SLS)
 methods and then projects the resulting matrix onto the space of DAGs to resolve cycles and
 enforce consistency.
 }
