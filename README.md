@@ -125,7 +125,7 @@ To estimate the causal graph, use the `MR_DAG` function. This function performs 
 # Run MR-DAG estimation
 # lam: Sparsity penalty (L1 regularization)
 # w_threshold: Cutoff for small edge weights
-B_est <- MR_DAG(X, Z, S, lam = 0.01, w_threshold = 0.1)
+B_est <- MR_DAG(X, Z, S, lam = 0.01, w_threshold = 0.1, ci=TRUE)
 
 # View the estimated adjacency matrix
 print(round(B_est, 3))
@@ -133,27 +133,55 @@ print(round(B_est, 3))
 
 ## Interpretation
 
-The output `B_est` is a weighted adjacency matrix of dimensions $p \times p$.
+When running `MR_DAG` with `ci = TRUE`, the function returns a **list** containing two elements:
+1.  `$B_est`: The estimated weighted adjacency matrix.
+2.  `$inference`: A data frame with statistical metrics for every detected edge.
 
-* **Rows vs Columns:** In this implementation, the matrix is oriented as **Target $\leftarrow$ Source**.
-    * Row $j$, Column $i$ ($B_{ji}$) represents the causal effect of **Node $i$ on Node $j$**.
-* **Values:**
-    * **0:** No direct causal link.
-    * **Non-zero:** Represents the estimated strength and direction (positive/negative) of the causal effect.
+### 1. Adjacency Matrix (`$B_est`)
 
-### Comparing Truth vs Estimate
+The matrix is oriented as **Target $\leftarrow$ Source**.
+* **Row $j$, Column $i$** ($B_{ji}$) represents the causal effect of **Node $i$ on Node $j$**.
+* **Example:** In the output below, entry `[2, 1]` is `0.5078`. This indicates that **Node 1** has a positive causal effect on **Node 2** with strength ~0.51.
 
-You can validate the model by comparing the ground truth matrix used in generation against the estimated matrix:
+```text
+$B_est
+      [,1]       [,2]       [,3]       [,4]       [,5]       [,6] [,7]       [,8]       [,9] [,10]
+ [1,]  0.0000000  0.0000000  0.0000000  0.0000000  0.0000000  0.0000000    0  0.0000000  0.0000000     0
+ [2,]  0.5078638  0.0000000  0.0000000  0.0000000  0.0000000  0.0000000    0  0.0000000  0.0000000     0
+ [3,]  0.0000000 -0.3531218  0.0000000  0.0000000  0.0000000  0.0000000    0  0.0000000  0.0000000     0
+ [4,]  0.0000000  0.3768854  0.0000000  0.0000000  0.0000000  0.0000000    0  0.0000000  0.0000000     0
+ [5,]  0.0000000  0.0000000  0.3553861  0.0000000  0.0000000  0.0000000    0  0.0000000  0.0000000     0
+ [6,] -0.3246943  0.0000000  0.0000000  0.0000000  0.0000000  0.0000000    0  0.0000000  0.0000000     0
+ [7,]  0.0000000  0.0000000  0.0000000  0.0000000  0.5344076  0.0000000    0  0.0000000  0.0000000     0
+ [8,]  0.0000000  0.0000000  0.0000000  0.3540929  0.0000000  0.4554284    0  0.0000000  0.0000000     0
+ [9,]  0.0000000  0.0000000  0.0000000  0.0000000  0.0000000  0.0000000    0 -0.3614605  0.0000000     0
+[10,]  0.0000000  0.0000000  0.0000000  0.0000000  0.0000000  0.0000000    0  0.0000000  0.2604913     0
+```
 
-```r
-# Check a specific edge (e.g., Effect of Node 1 on Node 2)
-true_effect <- B_true[2, 1] 
-est_effect  <- B_est[2, 1]
+### 2. Statistical Inference (`$inference`)
 
-cat(sprintf("True Effect (1->2): %.3f\n", true_effect))
-cat(sprintf("Est. Effect (1->2): %.3f\n", est_effect))
+This table provides the post-selection inference results (Theorem 3).
+* **target/source:** The edge direction (Source $\to$ Target).
+* **est:** The estimated coefficient (matches the matrix).
+* **se / pval:** Standard error and P-value derived from the asymptotic variance.
+* **ci_lower / ci_upper:** The 95% Wald confidence interval.
 
-# Calculate Frobenius Norm (Distance between matrices)
-frob_dist <- norm(B_true - B_est, type = "F")
-cat(sprintf("Total Matrix Error (Frobenius): %.3f\n", frob_dist))
+**Example Analysis (Node 8):**
+Node 8 appears twice in the table (Rows 7 and 8), indicating it has two distinct causal parents:
+1.  **4 $\to$ 8:** Estimate = 0.354 ($p \approx 0$).
+2.  **6 $\to$ 8:** Estimate = 0.455 ($p \approx 0$).
+
+```text
+$inference
+   target source        est         se         pval   ci_lower   ci_upper
+1       2      1  0.5078638 0.03812148 0.000000e+00  0.4331457  0.5825819
+2       3      2 -0.3531218 0.02670879 0.000000e+00 -0.4054710 -0.3007725
+3       4      2  0.3768854 0.03552540 0.000000e+00  0.3072556  0.4465151
+4       5      3  0.3553861 0.03191242 0.000000e+00  0.2928378  0.4179345
+5       6      1 -0.3246943 0.03025255 0.000000e+00 -0.3839893 -0.2653993
+6       7      5  0.5344076 0.04358042 0.000000e+00  0.4489899  0.6198252
+7       8      4  0.3540929 0.04091763 0.000000e+00  0.2738943  0.4342914
+8       8      6  0.4554284 0.03281262 0.000000e+00  0.3911156  0.5197411
+9       9      8 -0.3614605 0.02685575 0.000000e+00 -0.4140978 -0.3088232
+10     10      9  0.2604913 0.03158539 2.220446e-16  0.1985839  0.3223987
 ```
