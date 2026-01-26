@@ -15,30 +15,6 @@ install.packages(c("Matrix", "pcalg", "AER", "expm", "MASS"))
 
 ## Data Generation
 
-The included simulation engine generates synthetic datasets that mirror the assumptions of Mendelian Randomization (MR). The data generation process is encapsulated in `simulate_mr_data` and follows these steps:
-
-1.  **Instrument Assignment (cis-SNPs):**
-    Each phenotype node $X_j$ is assigned a specific set of valid genetic instruments (SNPs) denoted as $S_j$. These represent cis-acting variants.
-
-2.  **Genotype Simulation ($Z$):**
-    Genotypes are simulated as binomial variables (0, 1, 2) based on random Minor Allele Frequencies (MAF), representing the genetic anchors.
-
-3.  **Topology Construction ($B_{true}$):**
-    A ground-truth weighted adjacency matrix $B_{true}$ is generated. A random permutation ensures the graph is a DAG (no cycles), with edge weights sampled uniformly.
-
-4.  **Structural Equation Modeling:**
-    The phenotype matrix $X$ is generated using the following structural equation:
-    
-    $$X = (Z\Gamma^T + U\Pi + E)(I - B_{true}^T)^{-1}$$
-    
-    Where:
-    * **$Z\Gamma^T$**: The genetic component (valid instruments).
-    * **$U\Pi$**: Unobserved confounding effects affecting multiple phenotypes.
-    * **$E$**: Random noise.
-    * **$(I - B_{true}^T)^{-1}$**: The mixing matrix that propagates causal effects through the network.
-
-## Data Generation
-
 In this section, the data generation process is explicitly defined below. We simulate a network Mendelian randomization setting where:
 * **n = 5000**: Sample size.
 * **p = 10**: Number of phenotypes (e.g., protein levels).
@@ -92,13 +68,35 @@ B_true[4, 2] <-  0.3   # Node 2 -> Node 4
 B_true[5, 3] <-  0.4   # Node 3 -> Node 5
 B_true[6, 1] <- -0.3   # Node 1 -> Node 6
 B_true[7, 5] <-  0.5   # Node 5 -> Node 7
+B_true[8, 4] <-  0.3   # Node 4 -> Node 8
 B_true[8, 6] <-  0.4   # Node 6 -> Node 8
 B_true[9, 8] <- -0.4   # Node 8 -> Node 9
 B_true[10,9] <-  0.3   # Node 9 -> Node 10
 
-# Visualize the Ground Truth DAG
+
+# Visualize the Ground Truth DAG with Weights
 g <- new("graphAM", adjMat = t(B_true) != 0, edgemode = "directed")
-plot(g, attrs = list(node = list(fillcolor = "lightblue", shape = "circle")))
+
+# Prepare edge labels
+# edgeNames(g) returns strings like "1~2" (Source~Target)
+edge_names <- edgeNames(g)
+edge_labels <- setNames(character(length(edge_names)), edge_names)
+
+for (e in edge_names) {
+  parts <- strsplit(e, "~")[[1]]
+  src <- as.numeric(strsplit(parts[1], "n")[[1]][2])
+  tgt <- as.numeric(strsplit(parts[2], "n")[[1]][2])
+  
+  # Extract weight from B_true [target, source]
+  weight <- B_true[tgt, src]
+  edge_labels[e] <- as.character(round(weight, 2))
+}
+
+# Plot with edge weights
+plot(g, 
+     attrs = list(node = list(fillcolor = "lightblue", shape = "circle")),
+     edgeAttrs = list(label = edge_labels))
+
 
 # --- 5. Phenotypes (X) ---
 # Model: X = (Z*Gamma' + U*Pi + E) * (I - B')^-1
