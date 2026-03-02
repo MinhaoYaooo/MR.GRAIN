@@ -12,8 +12,12 @@ MR_DAG(
   max_iter = 100,
   h_tol = 1e-08,
   rho_max = 1e+16,
+  threshold_mode = c("quantile", "value"),
   w_threshold = 0.1,
-  ci = FALSE
+  q_threshold = 0.95,
+  quantile_ignore_zeros = TRUE,
+  ci = FALSE,
+  alpha = 0.05
 )
 }
 \arguments{
@@ -34,10 +38,25 @@ that only have direct / cis-regulatory effects) for phenotype \code{X[, j]}.}
 
 \item{rho_max}{Numeric. Maximum penalty parameter. Default is \code{1e16}.}
 
-\item{w_threshold}{Numeric. Threshold for zeroing out small coefficients. Default is \code{0.1}.}
+\item{threshold_mode}{Character. Thresholding strategy passed to \code{\link{notears_projection}}.
+Either \code{"value"} (absolute cutoff) or \code{"quantile"} (data-driven cutoff based on the
+empirical distribution of edge magnitudes). Default is \code{"quantile"}.}
+
+\item{w_threshold}{Numeric. Absolute threshold below which edge weights are set to zero in the
+final output when \code{threshold_mode = "value"}. Default is \code{0.1}.}
+
+\item{q_threshold}{Numeric. Quantile threshold in \eqn{(0,1)} used when
+\code{threshold_mode = "quantile"}. Edges with magnitude below the
+\code{q_threshold}-quantile of the absolute off-diagonal weights are set to zero.
+Default is \code{0.95}.}
+
+\item{quantile_ignore_zeros}{Logical. If \code{TRUE}, zero-valued weights are excluded when
+computing the quantile threshold. Default is \code{TRUE}.}
 
 \item{ci}{Logical. If \code{TRUE}, computes standard errors, p-values, and confidence intervals
 for the non-zero entries of the estimated DAG. Default is \code{FALSE}.}
+
+\item{alpha}{Numeric. Significance level if \code{ci=TRUE}. Default is \code{0.05}.}
 }
 \value{
 If \code{ci = FALSE}, returns a numeric matrix \eqn{B^*} of dimensions \eqn{p \times p}, representing
@@ -45,7 +64,7 @@ the estimated causal adjacency matrix.
 
 If \code{ci = TRUE}, returns a list containing:
 \item{B_est}{The estimated weighted adjacency matrix \eqn{B^*}.}
-\item{inference}{A data frame containing the Source, Target, Estimate, SE, P-value, and 95\% CI for each edge.}
+\item{inference}{A data frame containing the Source, Target, Estimate, SE, P-value, and CI for each edge.}
 }
 \description{
 `MR_DAG` infers a causal Directed Acyclic Graph (DAG) among a set of phenotypes (X) using

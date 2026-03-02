@@ -16,9 +16,20 @@
 #' @param max_iter Integer. Maximum iterations for projection. Default is \code{100}.
 #' @param h_tol Numeric. Tolerance for acyclicity. Default is \code{1e-8}.
 #' @param rho_max Numeric. Maximum penalty parameter. Default is \code{1e16}.
-#' @param w_threshold Numeric. Threshold for zeroing out small coefficients. Default is \code{0.1}.
+#' @param threshold_mode Character. Thresholding strategy passed to \code{\link{notears_projection}}.
+#'   Either \code{"value"} (absolute cutoff) or \code{"quantile"} (data-driven cutoff based on the
+#'   empirical distribution of edge magnitudes). Default is \code{"quantile"}.
+#' @param w_threshold Numeric. Absolute threshold below which edge weights are set to zero in the
+#'   final output when \code{threshold_mode = "value"}. Default is \code{0.1}.
+#' @param q_threshold Numeric. Quantile threshold in \eqn{(0,1)} used when
+#'   \code{threshold_mode = "quantile"}. Edges with magnitude below the
+#'   \code{q_threshold}-quantile of the absolute off-diagonal weights are set to zero.
+#'   Default is \code{0.95}.
+#' @param quantile_ignore_zeros Logical. If \code{TRUE}, zero-valued weights are excluded when
+#'   computing the quantile threshold. Default is \code{TRUE}.
 #' @param ci Logical. If \code{TRUE}, computes standard errors, p-values, and confidence intervals
 #'   for the non-zero entries of the estimated DAG. Default is \code{FALSE}.
+#' @param alpha Numeric. Significance level if \code{ci=TRUE}. Default is \code{0.05}.
 #'
 #' @return
 #' If \code{ci = FALSE}, returns a numeric matrix \eqn{B^*} of dimensions \eqn{p \times p}, representing
@@ -26,7 +37,7 @@
 #'
 #' If \code{ci = TRUE}, returns a list containing:
 #' \item{B_est}{The estimated weighted adjacency matrix \eqn{B^*}.}
-#' \item{inference}{A data frame containing the Source, Target, Estimate, SE, P-value, and 95\% CI for each edge.}
+#' \item{inference}{A data frame containing the Source, Target, Estimate, SE, P-value, and CI for each edge.}
 #'
 #' @details
 #' The algorithm proceeds in two steps:
@@ -43,15 +54,19 @@
 #' equations and constructing a covariance matrix using the coefficients of non-target proteins.
 #'
 #' @importFrom MASS ginv
-#' @importFrom stats lm.fit coef pnorm
+#' @importFrom stats lm.fit coef pnorm quantile
 #' @export
 MR_DAG <- function(X, Z, S,
                    lam = 0.0,
                    max_iter = 100,
                    h_tol = 1e-8,
                    rho_max = 1e16,
+                   threshold_mode = c("quantile", "value"),
                    w_threshold = 0.1,
-                   ci = FALSE) {
+                   q_threshold = 0.95,
+                   quantile_ignore_zeros = TRUE,
+                   ci = FALSE,
+                   alpha = 0.05) {
 
   # -------------------------------------------------------------
   # 1. Reduced-form Regression & Initialization
@@ -64,7 +79,11 @@ MR_DAG <- function(X, Z, S,
   q <- ncol(Z)
 
   # Gamma_hat = (X'Z)(Z'Z)^-1
-  XTZ <- t(X_c) %*% Z_c
+  XTZ <- matrix(0, nrow = ncol(X_c), ncol = ncol(Z_c))
+  for (j in 1:ncol(X_c)) {
+    ok <- !is.na(X_c[, j])
+    XTZ[j, ] <- crossprod(Z_c[ok, , drop = FALSE], X_c[ok, j])
+  }
   ZTZ <- t(Z_c) %*% Z_c
   ZTZ_inv <- tryCatch(solve(ZTZ), error = function(e) MASS::ginv(ZTZ))
   Gamma_hat <- XTZ %*% ZTZ_inv
@@ -85,9 +104,16 @@ MR_DAG <- function(X, Z, S,
       Xj <- Gamma_hat[other_prots, notSj, drop = FALSE]
       Xj_t <- t(Xj)
 
-      fit <- stats::lm.fit(x = as.matrix(Xj_t), y = y)
-      coefs <- stats::coef(fit)
-      coefs[is.na(coefs)] <- 0
+      ok <- !is.na(y) & stats::complete.cases(Xj_t)
+
+      if (sum(ok) > 0) {
+        fit <- stats::lm.fit(x = Xj_t[ok, , drop = FALSE], y = y[ok])
+        coefs <- stats::coef(fit)
+        coefs[is.na(coefs)] <- 0
+      } else {
+        coefs <- rep(0, length(other_prots))
+      }
+
       B_hat[j, other_prots] <- coefs
     }
   }
@@ -100,7 +126,18 @@ MR_DAG <- function(X, Z, S,
                                max_iter = max_iter,
                                h_tol = h_tol,
                                rho_max = rho_max,
-                               w_threshold = w_threshold)
+                               threshold_mode = threshold_mode,
+                               w_threshold = w_threshold,
+                               q_threshold = q_threshold,
+                               quantile_ignore_zeros = quantile_ignore_zeros)
+
+  if (!is.null(colnames(X))) {
+    rownames(B_star) <- colnames(X)
+    colnames(B_star) <- colnames(X)
+  } else {
+    rownames(B_star) <- 1:p
+    colnames(B_star) <- 1:p
+  }
 
   if (!ci) {
     return(B_star)
@@ -120,55 +157,38 @@ MR_DAG <- function(X, Z, S,
   )
 
   for (j in 1:p) {
-    # Identify parents based on the projected DAG
     parents <- which(abs(B_star[j, ]) > 1e-5)
     if (length(parents) == 0) next
 
-    # A. Reduced-form variance estimator (sigma_j^2)
-    # resid = X_j - Z * Gamma_j^T
     Gamma_j_hat <- Gamma_hat[j, ]
-    resid_rf <- X_c[, j] - (Z_c %*% Gamma_j_hat)
-    sigma_sq <- sum(resid_rf^2) / n  # Using df = n as per Python spec
+    ok <- !is.na(X_c[, j])
 
-    # B. Construct Sigma_Gamma (using all non-j proteins)
+    resid_rf <- X_c[ok, j] - (Z_c[ok, , drop = FALSE] %*% Gamma_j_hat)
+    sigma_sq <- sum(resid_rf^2) / sum(ok)
+
     notSj <- setdiff(1:q, S[[j]])
-
-    # If no valid instruments for inference, skip
     if (length(notSj) == 0) next
 
     other_nodes <- setdiff(1:p, j)
-
-    # Gamma_{-j, -S_j}
     Gamma_full <- Gamma_hat[other_nodes, notSj, drop = FALSE]
-
-    # Sigma_Gamma = Gamma_full * Gamma_full^T
     Sigma_Gamma_full <- Gamma_full %*% t(Gamma_full)
 
-    # Invert Sigma_Gamma
     Sigma_inv_full <- tryCatch(solve(Sigma_Gamma_full),
                                error = function(e) MASS::ginv(Sigma_Gamma_full))
 
-    # C. Extract Parent Block
-    # Map 'parents' indices to their positions within 'other_nodes'
-    # parent_idx gives the row/col index in Sigma_inv_full
     parent_idx <- match(parents, other_nodes)
-
     Sigma_inv <- Sigma_inv_full[parent_idx, parent_idx, drop = FALSE]
 
-    # D. Standard Errors
     var_matrix <- (sigma_sq / n) * Sigma_inv
-    # Ensure diagonal is positive before sqrt (numerical safety)
     var_diag <- diag(var_matrix)
     var_diag[var_diag < 0] <- 0
     se_vec <- sqrt(var_diag)
 
-    # E. Wald Inference
     for (k in seq_along(parents)) {
       parent_node <- parents[k]
       est_val <- B_star[j, parent_node]
       se_val <- se_vec[k]
 
-      # Handle zero SE case
       if (se_val < 1e-12) {
         t_stat <- Inf * sign(est_val)
         p_val <- 0.0
@@ -177,12 +197,12 @@ MR_DAG <- function(X, Z, S,
         p_val <- 2 * (1 - stats::pnorm(abs(t_stat)))
       }
 
-      ci_lower <- est_val - 1.96 * se_val
-      ci_upper <- est_val + 1.96 * se_val
+      ci_lower <- est_val - stats::qnorm(1 - alpha/2) * se_val
+      ci_upper <- est_val + stats::qnorm(1 - alpha/2) * se_val
 
       results_df <- rbind(results_df, data.frame(
-        target = j,
-        source = parent_node,
+        target = rownames(B_star)[j],
+        source = rownames(B_star)[parent_node],
         est = est_val,
         se = se_val,
         pval = p_val,
@@ -192,6 +212,5 @@ MR_DAG <- function(X, Z, S,
     }
   }
 
-  # Return list structure
   list(B_est = B_star, inference = results_df)
 }

@@ -15,8 +15,17 @@
 #'   Default is \code{1e-8}.
 #' @param rho_max Numeric. The maximum value for the penalty parameter \eqn{\rho}.
 #'   Default is \code{1e16}.
-#' @param w_threshold Numeric. A threshold below which edge weights are set to zero in the final output.
-#'   Default is \code{0.1}.
+#' @param threshold_mode Character. Thresholding strategy for sparsifying the final DAG weights.
+#'   Either \code{"value"} (absolute cutoff) or \code{"quantile"} (data-driven cutoff based on
+#'   the empirical distribution of edge magnitudes). Default is \code{"quantile"}.
+#' @param w_threshold Numeric. Absolute threshold below which edge weights are set to zero in the
+#'   final output when \code{threshold_mode = "value"}. Default is \code{0.1}.
+#' @param q_threshold Numeric. Quantile threshold in \eqn{(0,1)} used when
+#'   \code{threshold_mode = "quantile"}. Edges with magnitude below the
+#'   \code{q_threshold}-quantile of the absolute off-diagonal weights are set to zero.
+#'   Default is \code{0.95}.
+#' @param quantile_ignore_zeros Logical. If \code{TRUE}, zero-valued weights are excluded when
+#'   computing the quantile threshold. Default is \code{TRUE}.
 #'
 #' @return A numeric matrix \eqn{B^{\dagger}} (p x p) representing the projected DAG.
 #'   The matrix is weighted and strictly acyclic (within numerical tolerance).
@@ -27,26 +36,32 @@
 #' subject to the acyclicity constraint:
 #' \deqn{h(W) = \text{tr}(e^{W \circ W}) - p = 0}
 #'
+#' After optimization, small edge weights are removed using either an absolute threshold
+#' (\code{threshold_mode = "value"}) or a data-driven quantile threshold
+#' (\code{threshold_mode = "quantile"}), applied to the absolute off-diagonal entries of
+#' the estimated adjacency matrix.
+#'
 #' @importFrom expm expm
-#' @importFrom stats optim
+#' @importFrom stats optim quantile
 #' @export
 notears_projection <- function(B_init,
                                lam = 0.0,
                                max_iter = 100,
                                h_tol = 1e-8,
                                rho_max = 1e16,
-                               w_threshold = 0.1) {
+                               threshold_mode = c("quantile", "value"),
+                               w_threshold = 0.1,
+                               q_threshold = 0.95,
+                               quantile_ignore_zeros = TRUE) {
 
   p <- nrow(B_init)
 
-  # Helper: Convert flattened weights (pos/neg split) back to adjacency matrix
   get_adj <- function(w) {
     w_pos <- w[1:(p*p)]
     w_neg <- w[(p*p + 1):(2*p*p)]
     matrix(w_pos - w_neg, nrow = p, ncol = p)
   }
 
-  # Helper: Calculate Squared Loss and Gradient
   calc_loss <- function(W) {
     D <- W - B_init
     loss <- 0.5 * sum(D^2)
@@ -54,9 +69,7 @@ notears_projection <- function(B_init,
     list(loss = loss, G_loss = G_loss)
   }
 
-  # Helper: Calculate Acyclicity Constraint h(W) and Gradient
   calc_h <- function(W) {
-    # h(W) = tr(expm(W*W)) - p
     E <- expm::expm(W * W)
     h_val <- sum(diag(E)) - p
     G_h <- t(E) * W * 2
@@ -66,16 +79,13 @@ notears_projection <- function(B_init,
   rho <- 1.0
   alpha <- 0.0
 
-  # Augmented Lagrangian Objective Function
   fn_obj <- function(w) {
     W <- get_adj(w)
     l_res <- calc_loss(W)
     h_res <- calc_h(W)
-    obj <- l_res$loss + 0.5 * rho * h_res$h^2 + alpha * h_res$h + lam * sum(w)
-    return(obj)
+    l_res$loss + 0.5 * rho * h_res$h^2 + alpha * h_res$h + lam * sum(w)
   }
 
-  # Gradient of the Objective Function
   gr_obj <- function(w) {
     W <- get_adj(w)
     l_res <- calc_loss(W)
@@ -84,20 +94,16 @@ notears_projection <- function(B_init,
     c(as.vector(G_smooth) + lam, as.vector(-G_smooth) + lam)
   }
 
-  # Initialization
   w_est <- numeric(2 * p * p)
   h_val <- Inf
 
-  # Bounds for L-BFGS-B (Non-negative for split variables)
   lower_b <- numeric(2 * p * p)
   upper_b <- rep(Inf, 2 * p * p)
 
-  # Enforce zero diagonal (no self-loops allowed directly)
   diag_idx <- (0:(p-1)) * p + (1:p)
   lower_b[diag_idx] <- 0; upper_b[diag_idx] <- 0
   lower_b[diag_idx + p*p] <- 0; upper_b[diag_idx + p*p] <- 0
 
-  # Optimization Loop
   for (iter in 1:max_iter) {
     while (rho < rho_max) {
       res <- stats::optim(par = w_est, fn = fn_obj, gr = gr_obj,
@@ -118,6 +124,23 @@ notears_projection <- function(B_init,
   }
 
   B_dag <- get_adj(w_est)
-  B_dag[abs(B_dag) < w_threshold] <- 0.0
+
+  threshold_mode <- match.arg(threshold_mode)
+
+  if (threshold_mode == "value") {
+    thr <- w_threshold
+  } else {
+    v <- abs(as.vector(B_dag))
+    v[diag_idx] <- NA_real_
+    v <- v[is.finite(v)]
+    if (quantile_ignore_zeros) v <- v[v > 0]
+    if (length(v) == 0) {
+      thr <- Inf
+    } else {
+      thr <- as.numeric(stats::quantile(v, probs = q_threshold, names = FALSE))
+    }
+  }
+
+  B_dag[abs(B_dag) < thr] <- 0.0
   return(B_dag)
 }

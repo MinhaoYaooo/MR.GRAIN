@@ -10,7 +10,10 @@ notears_projection(
   max_iter = 100,
   h_tol = 1e-08,
   rho_max = 1e+16,
-  w_threshold = 0.1
+  threshold_mode = c("quantile", "value"),
+  w_threshold = 0.1,
+  q_threshold = 0.95,
+  quantile_ignore_zeros = TRUE
 )
 }
 \arguments{
@@ -29,8 +32,20 @@ Default is \code{1e-8}.}
 \item{rho_max}{Numeric. The maximum value for the penalty parameter \eqn{\rho}.
 Default is \code{1e16}.}
 
-\item{w_threshold}{Numeric. A threshold below which edge weights are set to zero in the final output.
-Default is \code{0.1}.}
+\item{threshold_mode}{Character. Thresholding strategy for sparsifying the final DAG weights.
+Either \code{"value"} (absolute cutoff) or \code{"quantile"} (data-driven cutoff based on
+the empirical distribution of edge magnitudes). Default is \code{"quantile"}.}
+
+\item{w_threshold}{Numeric. Absolute threshold below which edge weights are set to zero in the
+final output when \code{threshold_mode = "value"}. Default is \code{0.1}.}
+
+\item{q_threshold}{Numeric. Quantile threshold in \eqn{(0,1)} used when
+\code{threshold_mode = "quantile"}. Edges with magnitude below the
+\code{q_threshold}-quantile of the absolute off-diagonal weights are set to zero.
+Default is \code{0.95}.}
+
+\item{quantile_ignore_zeros}{Logical. If \code{TRUE}, zero-valued weights are excluded when
+computing the quantile threshold. Default is \code{TRUE}.}
 }
 \value{
 A numeric matrix \eqn{B^{\dagger}} (p x p) representing the projected DAG.
@@ -47,4 +62,9 @@ The optimization problem solves:
 \deqn{\min_{W} \frac{1}{2} ||W - B_{init}||_F^2 + \lambda ||W||_1}
 subject to the acyclicity constraint:
 \deqn{h(W) = \text{tr}(e^{W \circ W}) - p = 0}
+
+After optimization, small edge weights are removed using either an absolute threshold
+(\code{threshold_mode = "value"}) or a data-driven quantile threshold
+(\code{threshold_mode = "quantile"}), applied to the absolute off-diagonal entries of
+the estimated adjacency matrix.
 }
