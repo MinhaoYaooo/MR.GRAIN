@@ -12,6 +12,12 @@ BiocManager::install(c("graph", "RBGL", "Rgraphviz"))
 install.packages(c("Matrix", "pcalg", "AER", "expm", "MASS"))
 ```
 
+## Installation
+You can install the development version of `MR.GRAIN` from Github via the `devtools` package.
+```
+devtools::install_github("MinhaoYaooo/MR.GRAIN")
+```
+
 ## Data Generation
 
 In this section, the data generation process is explicitly defined below. We simulate a network Mendelian randomization setting where:
