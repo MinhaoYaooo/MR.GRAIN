@@ -1,5 +1,4 @@
-# MRDAG
-**MR-DAG** is an R framework for inferring directed acyclic graphs (DAGs) among phenotypes using genetic variants as instrumental variables. It combines Two-Stage Least Squares (2SLS) regressions with the **NOTEARS** continuous optimization constraint to enforce acyclicity and recover causal structures.
+`MR.GRAIN` is an R framework for inferring directed acyclic graphs (DAGs) among phenotypes using genetic variants as instrumental variables. It combines Two-Stage Least Squares (2SLS) regressions with the **NOTEARS** continuous optimization constraint to enforce acyclicity and recover causal structures.
 
 ## Prerequisites
 
