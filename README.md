@@ -1,4 +1,4 @@
-`MR.GRAIN` is an R framework for inferring directed acyclic graphs (DAGs) among phenotypes using genetic variants as instrumental variables. It combines Two-Stage Least Squares (2SLS) regressions with the **NOTEARS** continuous optimization constraint to enforce acyclicity and recover causal structures.
+`MR.GRAIN` is a a novel causal inference framework for **G**enetically anchored **R**econstruction of c**A**usal b**I**omolecular **N**etworks. Specifically, MR-GRAIN uses biomolecule-specific genetic instruments as anchors that perturb individual nodes and provide directional information for learning network structure within a unified structural equation modeling framework. Building on this anchor structure, MR-GRAIN recovers a sparse directed biomolecular network and refines the network through continuous optimization to ensure an acyclic structure.
 
 ## Prerequisites
 
