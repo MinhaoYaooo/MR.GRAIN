@@ -136,7 +136,7 @@ To estimate the causal graph, use the `MR_GRAIN` function. This function perform
 # Run MR-GRAIN estimation
 # lam: Sparsity penalty (L1 regularization)
 # w: Cutoff for small edge weights
-results <- MR_GRAIN(X, Z, S, lam = 0.01, w_threshold = 0.1)
+results <- MR_GRAIN(X, Z, S, lam = 0.00, w_threshold = 0.1)
 print(results)
 ```
 
@@ -146,21 +146,21 @@ print(results)
 
 The matrix is oriented as **Target $\leftarrow$ Source**.
 * **Row $j$, Column $i$** ($B_{ji}$) represents the causal effect of **Node $i$ on Node $j$**.
-* **Example:** In the output below, entry `[2, 1]` is `0.4420524`. This indicates that **Node 1** has a positive causal effect on **Node 2** with strength ~0.44.
+* **Example:** In the output below, entry `[2, 1]` is `0.4550279`. This indicates that **Node 1** has a positive causal effect on **Node 2** with strength ~0.46.
 
 ```text
 $B_DAG
-            [,1]       [,2]      [,3]      [,4]      [,5]      [,6] [,7]       [,8]      [,9] [,10]
- [1,]  0.0000000  0.0000000 0.0000000 0.0000000 0.0000000 0.0000000    0  0.0000000 0.0000000     0
- [2,]  0.4420524  0.0000000 0.0000000 0.0000000 0.0000000 0.0000000    0  0.0000000 0.0000000     0
- [3,]  0.0000000 -0.3767870 0.0000000 0.0000000 0.0000000 0.0000000    0  0.0000000 0.0000000     0
- [4,]  0.0000000  0.3476019 0.0000000 0.0000000 0.0000000 0.0000000    0  0.0000000 0.0000000     0
- [5,]  0.0000000  0.0000000 0.3408207 0.0000000 0.0000000 0.0000000    0  0.0000000 0.0000000     0
- [6,] -0.3018086  0.0000000 0.0000000 0.0000000 0.0000000 0.0000000    0  0.0000000 0.0000000     0
- [7,]  0.0000000  0.0000000 0.0000000 0.0000000 0.5426592 0.0000000    0  0.0000000 0.0000000     0
- [8,]  0.0000000  0.0000000 0.0000000 0.2969398 0.0000000 0.4085123    0  0.0000000 0.0000000     0
- [9,]  0.0000000  0.0000000 0.0000000 0.0000000 0.0000000 0.0000000    0 -0.3668382 0.0000000     0
-[10,]  0.0000000  0.0000000 0.0000000 0.0000000 0.0000000 0.0000000    0  0.0000000 0.2120914     0
+            [,1]       [,2]      [,3]      [,4]     [,5]      [,6] [,7]       [,8]      [,9] [,10]
+ [1,]  0.0000000  0.0000000 0.0000000 0.0000000 0.000000 0.0000000    0  0.0000000 0.0000000     0
+ [2,]  0.4550279  0.0000000 0.0000000 0.0000000 0.000000 0.0000000    0  0.0000000 0.0000000     0
+ [3,]  0.0000000 -0.3920073 0.0000000 0.0000000 0.000000 0.0000000    0  0.0000000 0.0000000     0
+ [4,]  0.0000000  0.3567446 0.0000000 0.0000000 0.000000 0.0000000    0  0.0000000 0.0000000     0
+ [5,]  0.0000000  0.0000000 0.3557793 0.0000000 0.000000 0.0000000    0  0.0000000 0.0000000     0
+ [6,] -0.3136229  0.0000000 0.0000000 0.0000000 0.000000 0.0000000    0  0.0000000 0.0000000     0
+ [7,]  0.0000000  0.0000000 0.0000000 0.0000000 0.555964 0.0000000    0  0.0000000 0.0000000     0
+ [8,]  0.0000000  0.0000000 0.0000000 0.3159037 0.000000 0.4186859    0  0.0000000 0.0000000     0
+ [9,]  0.0000000  0.0000000 0.0000000 0.0000000 0.000000 0.0000000    0 -0.3815922 0.0000000     0
+[10,]  0.0000000  0.0000000 0.0000000 0.0000000 0.000000 0.0000000    0  0.0000000 0.2288957     0
 ```
 
 ### 2. Statistical Inference (`$sd` and `$pval`)
@@ -182,17 +182,17 @@ $sd
 [10,]         NA         NA         NA         NA         NA         NA   NA        NA 0.04658384    NA
 
 $pval
-              [,1]         [,2]        [,3]         [,4]         [,5]         [,6] [,7]         [,8]        [,9] [,10]
- [1,]           NA           NA          NA           NA           NA           NA   NA           NA          NA    NA
- [2,] 9.280035e-24           NA          NA           NA           NA           NA   NA           NA          NA    NA
- [3,]           NA 9.061951e-14          NA           NA           NA           NA   NA           NA          NA    NA
- [4,]           NA 4.745124e-15          NA           NA           NA           NA   NA           NA          NA    NA
- [5,]           NA           NA 2.92415e-14           NA           NA           NA   NA           NA          NA    NA
- [6,] 4.392093e-08           NA          NA           NA           NA           NA   NA           NA          NA    NA
- [7,]           NA           NA          NA           NA 3.612418e-26           NA   NA           NA          NA    NA
- [8,]           NA           NA          NA 2.870512e-12           NA 1.552118e-32   NA           NA          NA    NA
- [9,]           NA           NA          NA           NA           NA           NA   NA 4.748775e-16          NA    NA
-[10,]           NA           NA          NA           NA           NA           NA   NA           NA 5.29123e-06    NA
+              [,1]         [,2]         [,3]         [,4]         [,5]         [,6] [,7]         [,8]         [,9] [,10]
+ [1,]           NA           NA           NA           NA           NA           NA   NA           NA           NA    NA
+ [2,] 4.456815e-25           NA           NA           NA           NA           NA   NA           NA           NA    NA
+ [3,]           NA 8.834267e-15           NA           NA           NA           NA   NA           NA           NA    NA
+ [4,]           NA 9.018554e-16           NA           NA           NA           NA   NA           NA           NA    NA
+ [5,]           NA           NA 2.100396e-15           NA           NA           NA   NA           NA           NA    NA
+ [6,] 1.280812e-08           NA           NA           NA           NA           NA   NA           NA           NA    NA
+ [7,]           NA           NA           NA           NA 2.190272e-27           NA   NA           NA           NA    NA
+ [8,]           NA           NA           NA 1.086415e-13           NA 4.321295e-34   NA           NA           NA    NA
+ [9,]           NA           NA           NA           NA           NA           NA   NA 3.060084e-17           NA    NA
+[10,]           NA           NA           NA           NA           NA           NA   NA           NA 8.940627e-07    NA
 ```
 
 We can also visualize the estimated DAG using the above codes by changing `B_true` to `results$B_DAG`.
