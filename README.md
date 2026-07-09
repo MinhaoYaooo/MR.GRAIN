@@ -136,7 +136,7 @@ To estimate the causal graph, use the `MR_GRAIN` function. This function perform
 # Run MR-GRAIN estimation
 # lam: Sparsity penalty (L1 regularization)
 # w: Cutoff for small edge weights
-results <- MR_DAG(X, Z, S, lam = 0.01, w_threshold = 0.1)
+results <- MR_GRAIN(X, Z, S, lam = 0.01, w_threshold = 0.1)
 print(results)
 ```
 
